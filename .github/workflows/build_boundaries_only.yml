@@ -1,4 +1,4 @@
-name: Build Boundaries Only
+name: Build and Commit Boundaries
 on:
   workflow_dispatch:
 
@@ -6,9 +6,14 @@ jobs:
   compile:
     runs-on: ubuntu-latest
 
+    permissions:
+      contents: write 
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -18,9 +23,15 @@ jobs:
       - name: Compile boundary files
         run: node compiler.js
 
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: TRACONBoundaries
-          path: TRACONBoundaries.geojson
-          if-no-files-found: error
+      - name: Commit compiled GeoJSON
+        run: |
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
+
+          if git diff --quiet TRACONBoundaries.geojson; then
+            echo "No changes to commit."
+          else
+            git add TRACONBoundaries.geojson
+            git commit -m "Update compiled TRACON boundaries"
+            git push origin main
+          fi
